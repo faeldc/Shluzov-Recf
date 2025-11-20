@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shluzov [SLZ] - Recrutamento</title>
+  <script src="https://roblox-api-proxy.luckygames123.repl.co/init.js"></script>
+  <style>
+    :root {
+      --baby-blue: #89CFF0;
+      --dark-blue: #4682B4;
+      --white: #ffffff;
+      --black: #000000;
+    }
+    body {
+      margin: 0; font-family: 'Arial'; background: var(--dark-blue); color: white;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .container {
+      background: var(--baby-blue); padding: 40px; border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.8); text-align: center; max-width: 400px;
+      border: 4px solid var(--black);
+    }
+    h1 { margin: 0 0 20px; font-size: 2.5em; color: var(--black); }
+    input, textarea, button {
+      width: 100%; padding: 12px; margin: 10px 0; border: 3px solid var(--black);
+      border-radius: 8px; font-size: 1em;
+    }
+    button {
+      background: var(--dark-blue); color: white; cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover { background: #2F4F4F; }
+    .hidden { display: none; }
+    .status { margin-top: 20px; font-size: 1.3em; font-weight: bold; }
+    #adminPanel { background: #000000dd; padding: 20px; border-radius: 10px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Shluzov [SLZ]</h1>
+
+    <div id="loginPage">
+      <button onclick="Roblox.login()">Login com Roblox</button>
+    </div>
+
+    <div id="formPage" class="hidden">
+      <p>Usuário: <span id="username"></span> (ID: <span id="userId"></span>)</p>
+      <input type="text" id="motivo" placeholder="Por que quer entrar no Shluzov?" required>
+      <input type="number" id="idade" placeholder="Sua idade" required>
+      <input type="number" id="tempo" placeholder="Há quantos anos joga Roblox?" required>
+      <button onclick="enviarPedido()">Enviar Pedido</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div id="adminLogin" class="hidden">
+      <input type="password" id="adminCode" placeholder="Código Admin">
+      <button onclick="checkAdmin()">Acessar Painel Admin</button>
+    </div>
+
+    <div id="adminPanel" class="hidden">
+      <h2>Painel Admin</h2>
+      <div id="pedidosList"></div>
+      <button onclick="logoutAdmin()">Sair</button>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+
+    Roblox.onLogin(user => {
+      currentUser = user;
+      document.getElementById('username').textContent = user.username;
+      document.getElementById('userId').textContent = user.id;
+      document.getElementById('loginPage').classList.add('hidden');
+      document.getElementById('formPage').classList.remove('hidden');
+      checkExistingRequest();
+    });
+
+    function enviarPedido() {
+      const motivo = document.getElementById('motivo').value;
+      const idade = document.getElementById('idade').value;
+      const tempo = document.getElementById('tempo').value;
+
+      if (!motivo || !idade || !tempo) return alert("Preencha tudo!");
+
+      const pedidos = JSON.parse(localStorage.getItem('slz_pedidos') || '[]');
+      pedidos.push({
+        id: currentUser.id,
+        username: currentUser.username,
+        motivo, idade, tempo,
+        status: 'pendente',
+        data: new Date().toLocaleString('pt-BR')
+      });
+      localStorage.setItem('slz_pedidos', JSON.stringify(pedidos));
+      document.getElementById('status').textContent = 'Pedido enviado! Status: PENDENTE';
+      document.getElementById('status').style.color = 'yellow';
+    }
+
+    function checkExistingRequest() {
+      const pedidos = JSON.parse(localStorage.getItem('slz_pedidos') || '[]');
+      const existente = pedidos.find(p => p.id == currentUser.id);
+      if (existente) {
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = `Status: ${existente.status.toUpperCase()}`;
+        statusEl.style.color = existente.status === 'aceito' ? 'lime' : 'yellow';
+        if (existente.status === 'aceito') {
+          document.querySelectorAll('#formPage input, #formPage button').forEach(el => el.disabled = true);
+        }
+      }
+      // Mostra botão admin só se o usuário logado for você (opcional)
+      if (currentUser && currentUser.id === '12345678') {
+        document.getElementById('adminLogin').classList.remove('hidden');
+      }
+    }
+
+    function checkAdmin() {
+      if (document.getElementById('adminCode').value === '12109') {
+        document.getElementById('adminLogin').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+        loadPedidos();
+      } else {
+        alert('Código errado');
+      }
+    }
+
+    function loadPedidos() {
+      const pedidos = JSON.parse(localStorage.getItem('slz_pedidos') || '[]');
+      const list = document.getElementById('pedidosList');
+      list.innerHTML = '';
+      pedidos.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.style = 'background:#0008;padding:15px;margin:10px 0;border-radius:8px;';
+        div.innerHTML = `
+          <strong>${p.username} (${p.id})</strong> - ${p.data}<br>
+          Motivo: ${p.motivo}<br>
+          Idade: ${p.idade} | Joga há ${p.tempo} anos<br>
+          Status: <span style="color:${p.status==='aceito'?'lime':'yellow'}">${p.status.toUpperCase()}</span>
+          ${p.status!=='aceito' ? `<button onclick="aceitar(${i})">ACEITAR</button>` : ''}
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function aceitar(index) {
+      const pedidos = JSON.parse(localStorage.getItem('slz_pedidos') || '[]');
+      pedidos[index].status = 'aceito';
+      localStorage.setItem('slz_pedidos', JSON.stringify(pedidos));
+      loadPedidos();
+    }
+
+    function logoutAdmin() {
+      document.getElementById('adminPanel').classList.add('hidden');
+      document.getElementById('adminLogin').classList.remove('hidden');
+      document.getElementById('adminCode').value = '';
+    }
+  </script>
+</body>
+</html>
